@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f0f0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ギャラリー">
+<title>ギャラリー</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#252525;--surface3:#2e2e2e;
+  --accent:#8AB4F8;--accent2:#c084fc;
+  --text:#e8eaed;--text2:#9aa0a6;--text3:#5f6368;
+  --border:rgba(255,255,255,0.08);--radius:12px;
+  --safe-top:env(safe-area-inset-top);
+  --safe-bottom:env(safe-area-inset-bottom);
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans JP',system-ui,sans-serif;font-size:14px}
+#app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;position:relative}
+
+/* ── Header ── */
+.topbar{
+  display:flex;align-items:center;padding:calc(var(--safe-top) + 10px) 12px 10px;
+  background:var(--bg);gap:6px;flex-shrink:0;
+}
+.topbar-title{flex:1;font-size:20px;font-weight:700;letter-spacing:-.5px}
+.icon-btn{
+  width:40px;height:40px;border-radius:50%;border:none;
+  background:var(--surface2);color:var(--text);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  transition:background .15s;flex-shrink:0;
+}
+.icon-btn:active{background:var(--surface3)}
+
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:.5px solid var(--border);flex-shrink:0;background:var(--bg)}
+.tab{
+  flex:1;padding:10px 0;font-size:13px;font-weight:500;color:var(--text2);
+  cursor:pointer;text-align:center;border-bottom:2px solid transparent;
+  transition:all .2s;
+}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ── Content ── */
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.content::-webkit-scrollbar{display:none}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* ── Chip row ── */
+.chip-row{display:flex;gap:8px;padding:12px 12px 4px;overflow-x:auto;scrollbar-width:none}
+.chip-row::-webkit-scrollbar{display:none}
+.chip{
+  background:var(--surface2);border:.5px solid var(--border);border-radius:20px;
+  padding:6px 14px;font-size:12px;white-space:nowrap;cursor:pointer;
+  color:var(--text2);transition:all .15s;flex-shrink:0;
+}
+.chip.active{background:rgba(138,180,248,.15);border-color:var(--accent);color:var(--accent)}
+
+/* ── Section label ── */
+.section-label{font-size:11px;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;padding:10px 16px 6px}
+
+/* ── Folder grid ── */
+.folder-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+.folder-card{
+  background:var(--surface);border-radius:var(--radius);overflow:hidden;cursor:pointer;
+  border:.5px solid var(--border);transition:transform .15s;
+}
+.folder-card:active{transform:scale(.97)}
+.folder-thumb{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;aspect-ratio:1;background:var(--border);overflow:hidden}
+.thumb-cell{position:relative;overflow:hidden;background:var(--surface2)}
+.thumb-cell img{width:100%;height:100%;object-fit:cover;display:block}
+.vid-corner{
+  position:absolute;bottom:3px;right:3px;background:rgba(0,0,0,.7);
+  border-radius:3px;padding:1px 4px;font-size:9px;color:#fff;
+}
+.folder-info{padding:10px}
+.folder-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.folder-count{font-size:11px;color:var(--text2);margin-top:2px}
+.folder-badges{display:flex;gap:4px;margin-top:6px}
+.badge{font-size:9px;padding:2px 6px;border-radius:10px;font-weight:500}
+.badge-p{background:rgba(138,180,248,.15);color:var(--accent)}
+.badge-v{background:rgba(192,132,252,.15);color:var(--accent2)}
+
+/* ── Media grid ── */
+.media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:2px}
+.media-item{position:relative;aspect-ratio:1;cursor:pointer;overflow:hidden;border-radius:2px}
+.media-item img,.media-item video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.media-item:active{opacity:.8}
+.vid-badge{
+  position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.7);
+  border-radius:4px;padding:2px 5px;font-size:9px;color:#fff;
+  display:flex;align-items:center;gap:3px;
+}
+
+/* ── Empty state ── */
+.empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;gap:12px;color:var(--text2);font-size:13px;text-align:center;
+}
+.empty .emoji{font-size:48px}
+
+/* ── Fullscreen view ── */
+#fullscreen{
+  position:fixed;inset:0;background:#000;z-index:100;
+  display:flex;flex-direction:column;transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+#fullscreen.open{transform:translateY(0)}
+.full-header{
+  display:flex;align-items:center;gap:8px;
+  padding:calc(var(--safe-top)+8px) 12px 8px;
+  background:linear-gradient(#000 70%,transparent);position:absolute;top:0;left:0;right:0;z-index:2;
+}
+.full-title{flex:1;font-size:14px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.full-media{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.full-media img{max-width:100%;max-height:100%;object-fit:contain}
+.full-media video{max-width:100%;max-height:100%}
+.full-footer{
+  display:flex;justify-content:space-around;
+  padding:12px 0 calc(var(--safe-bottom)+12px);
+  background:linear-gradient(transparent,#000 40%);
+}
+.full-action{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:none;color:rgba(255,255,255,.8);cursor:pointer;
+  font-size:11px;padding:8px 16px;
+}
+.full-action svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.full-action.danger{color:#f87171}
+
+/* ── Info sheet ── */
+.info-sheet{
+  position:absolute;bottom:60px;left:12px;right:12px;
+  background:rgba(26,26,26,.95);border-radius:var(--radius);
+  padding:16px;backdrop-filter:blur(8px);
+  border:.5px solid var(--border);
+  transform:translateY(20px);opacity:0;pointer-events:none;
+  transition:all .25s;
+}
+.info-sheet.show{transform:translateY(0);opacity:1;pointer-events:auto}
+.info-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
+.info-label{color:var(--text2)}
+.info-val{color:var(--text);max-width:60%;text-align:right;word-break:break-all}
+
+/* ── Folder detail screen ── */
+#folder-screen{
+  position:fixed;inset:0;background:var(--bg);z-index:50;
+  transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+}
+#folder-screen.open{transform:translateX(0)}
+.folder-header{
+  display:flex;align-items:center;gap:8px;
+  padding:calc(var(--safe-top)+8px) 12px 8px;
+  background:var(--bg);flex-shrink:0;
+}
+.folder-header-info{flex:1;overflow:hidden}
+.folder-header h2{font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.folder-header p{font-size:11px;color:var(--text2);margin-top:1px}
+.folder-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.folder-content::-webkit-scrollbar{display:none}
+
+/* ── Upload hint ── */
+.upload-hint{
+  background:rgba(138,180,248,.08);border:.5px solid rgba(138,180,248,.2);
+  border-radius:10px;margin:12px;padding:14px;
+  display:flex;align-items:center;gap:12px;cursor:pointer;
+}
+.upload-hint-text{flex:1}
+.upload-hint-text strong{font-size:13px;color:var(--accent);display:block}
+.upload-hint-text span{font-size:11px;color:var(--text2);margin-top:2px;display:block}
+
+/* ── Toast ── */
+#toast{
+  position:fixed;bottom:calc(var(--safe-bottom)+20px);left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--surface2);color:var(--text);padding:10px 18px;
+  border-radius:20px;font-size:13px;opacity:0;pointer-events:none;
+  transition:all .3s;z-index:999;white-space:nowrap;border:.5px solid var(--border);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Loading ── */
+#loading{
+  position:fixed;inset:0;background:var(--bg);z-index:200;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+}
+.spinner{width:40px;height:40px;border:3px solid var(--surface2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Install banner ── */
+#install-banner{
+  background:var(--surface);border-bottom:.5px solid var(--border);
+  padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+#install-banner p{flex:1;font-size:12px;color:var(--text2);line-height:1.4}
+#install-banner button{
+  background:var(--accent);color:#0f0f0f;border:none;border-radius:8px;
+  padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="font-size:40px">📷</div>
+  <div class="spinner"></div>
+  <p style="color:var(--text2);font-size:13px">読み込み中...</p>
+</div>
+
+<div id="app" style="display:none">
+
+  <!-- Install banner (PWA) -->
+  <div id="install-banner" style="display:none">
+    <span style="font-size:24px">📲</span>
+    <p>ホーム画面に追加するとアプリとして使えます</p>
+    <button id="install-btn">追加</button>
+  </div>
+
+  <div class="topbar">
+    <div class="topbar-title">ギャラリー</div>
+    <button class="icon-btn" onclick="openFilePicker()" title="フォルダを開く">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </button>
+    <button class="icon-btn" id="search-btn" title="検索">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    </button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="folders">フォルダ</div>
+    <div class="tab" data-tab="photos">写真</div>
+    <div class="tab" data-tab="videos">動画</div>
+  </div>
+
+  <div class="content">
+    <!-- フォルダタブ -->
+    <div class="tab-panel active" id="tab-folders">
+      <div id="folders-grid"></div>
+    </div>
+
+    <!-- 写真タブ -->
+    <div class="tab-panel" id="tab-photos">
+      <div class="chip-row" id="photo-chips">
+        <div class="chip active" data-filter="all">すべて</div>
+        <div class="chip" data-filter="recent">最近</div>
+        <div class="chip" data-filter="large">大きい</div>
+      </div>
+      <div class="section-label" id="photo-count-label"></div>
+      <div class="media-grid" id="photo-grid"></div>
+    </div>
+
+    <!-- 動画タブ -->
+    <div class="tab-panel" id="tab-videos">
+      <div class="chip-row" id="video-chips">
+        <div class="chip active" data-filter="all">すべて</div>
+        <div class="chip" data-filter="short">短い</div>
+        <div class="chip" data-filter="long">長い</div>
+      </div>
+      <div class="section-label" id="video-count-label"></div>
+      <div class="media-grid" id="video-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- フォルダ詳細画面 -->
+<div id="folder-screen">
+  <div class="folder-header">
+    <button class="icon-btn" onclick="closeFolderScreen()">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="folder-header-info">
+      <h2 id="folder-screen-name"></h2>
+      <p id="folder-screen-count"></p>
+    </div>
+  </div>
+  <div class="folder-content">
+    <div class="media-grid" id="folder-media-grid"></div>
+  </div>
+</div>
+
+<!-- フルスクリーン表示 -->
+<div id="fullscreen">
+  <div class="full-header">
+    <button class="icon-btn" style="background:rgba(255,255,255,.1)" onclick="closeFullscreen()">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="full-title" id="full-title"></span>
+    <button class="icon-btn" style="background:rgba(255,255,255,.1)" onclick="toggleInfo()">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+    </button>
+  </div>
+  <div class="full-media" id="full-media"></div>
+  <div class="info-sheet" id="info-sheet">
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">ファイル情報</div>
+    <div id="info-rows"></div>
+  </div>
+  <div class="full-footer">
+    <button class="full-action" onclick="shareMedia()">
+      <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+      シェア
+    </button>
+    <button class="full-action" onclick="downloadMedia()">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      保存
+    </button>
+    <button class="full-action danger" onclick="deleteMedia()">
+      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      削除
+    </button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<input type="file" id="file-input" multiple accept="image/*,video/*" style="display:none" webkitdirectory>
+<input type="file" id="file-input-single" multiple accept="image/*,video/*" style="display:none">
+
+<script>
+// ─────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────
+const state = {
+  files: [],          // {file, url, type, folder, name, size, duration}
+  folders: {},        // folderName -> [{...}]
+  currentItem: null,
+  infoVisible: false,
+  deferredInstall: null
+};
+
+// ─────────────────────────────────────
+//  PWA Install
+// ─────────────────────────────────────
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  state.deferredInstall = e;
+  document.getElementById('install-banner').style.display = 'flex';
+});
+document.getElementById('install-btn').onclick = async () => {
+  if (!state.deferredInstall) return;
+  state.deferredInstall.prompt();
+  const { outcome } = await state.deferredInstall.userChoice;
+  state.deferredInstall = null;
+  document.getElementById('install-banner').style.display = 'none';
+  if (outcome === 'accepted') showToast('ホーム画面に追加しました');
+};
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').style.display = 'none';
+});
+
+// ─────────────────────────────────────
+//  SERVICE WORKER
+// ─────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// ─────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────
+window.addEventListener('load', () => {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  renderEmptyState();
+  initTabs();
+  initChips();
+});
+
+function renderEmptyState() {
+  document.getElementById('folders-grid').innerHTML = `
+    <div class="upload-hint" onclick="openFilePicker()">
+      <span style="font-size:32px">📂</span>
+      <div class="upload-hint-text">
+        <strong>フォルダを選択</strong>
+        <span>端末の写真・動画フォルダを開く</span>
+      </div>
+      <svg width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+    <div class="upload-hint" onclick="openFilePicker('single')">
+      <span style="font-size:32px">🖼️</span>
+      <div class="upload-hint-text">
+        <strong>ファイルを選択</strong>
+        <span>写真・動画を複数選択</span>
+      </div>
+      <svg width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+    <div class="empty"><div class="emoji">🗂️</div><p>フォルダを選択すると<br>写真・動画が表示されます</p></div>`;
+  document.getElementById('photo-grid').innerHTML = `<div class="empty" style="grid-column:span 3"><div class="emoji">📷</div><p>写真がありません</p></div>`;
+  document.getElementById('video-grid').innerHTML = `<div class="empty" style="grid-column:span 3"><div class="emoji">🎬</div><p>動画がありません</p></div>`;
+  document.getElementById('photo-count-label').textContent = '';
+  document.getElementById('video-count-label').textContent = '';
+}
+
+// ─────────────────────────────────────
+//  FILE PICKER
+// ─────────────────────────────────────
+function openFilePicker(mode) {
+  if (mode === 'single') {
+    document.getElementById('file-input-single').click();
+  } else {
+    document.getElementById('file-input').click();
+  }
+}
+
+document.getElementById('file-input').addEventListener('change', e => handleFiles(e.target.files));
+document.getElementById('file-input-single').addEventListener('change', e => handleFiles(e.target.files));
+
+async function handleFiles(fileList) {
+  if (!fileList || fileList.length === 0) return;
+  document.getElementById('loading').style.display = 'flex';
+
+  // 既存URLを解放
+  state.files.forEach(f => { if (f.url) URL.revokeObjectURL(f.url); });
+  state.files = [];
+  state.folders = {};
+
+  const allowed = /^(image|video)\//i;
+  const allFiles = Array.from(fileList).filter(f => allowed.test(f.type));
+
+  if (allFiles.length === 0) {
+    document.getElementById('loading').style.display = 'none';
+    showToast('写真・動画が見つかりませんでした');
+    return;
+  }
+
+  for (const file of allFiles) {
+    const url = URL.createObjectURL(file);
+    const isVideo = file.type.startsWith('video/');
+    // フォルダ名: webkitRelativePath から、なければ "その他"
+    const relPath = file.webkitRelativePath || '';
+    const folder = relPath.includes('/') ? relPath.split('/').slice(0, -1).join('/') : 'その他';
+
+    const item = { file, url, type: isVideo ? 'video' : 'photo', folder, name: file.name, size: file.size, duration: null, mimeType: file.type };
+
+    if (isVideo) {
+      item.duration = await getVideoDuration(url);
+    }
+
+    state.files.push(item);
+    if (!state.folders[folder]) state.folders[folder] = [];
+    state.folders[folder].push(item);
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  renderAll();
+  showToast(`${allFiles.length} 件を読み込みました`);
+}
+
+function getVideoDuration(url) {
+  return new Promise(resolve => {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.onloadedmetadata = () => resolve(v.duration);
+    v.onerror = () => resolve(null);
+    v.src = url;
+  });
+}
+
+// ─────────────────────────────────────
+//  RENDER
+// ─────────────────────────────────────
+function renderAll() {
+  renderFolders();
+  renderPhotos();
+  renderVideos();
+}
+
+function renderFolders() {
+  const grid = document.getElementById('folders-grid');
+  const folderEntries = Object.entries(state.folders);
+  if (folderEntries.length === 0) { renderEmptyState(); return; }
+
+  // Upload hint (小さめ)
+  const hint = `<div class="upload-hint" onclick="openFilePicker()" style="margin:12px 12px 0">
+    <span style="font-size:22px">📂</span>
+    <div class="upload-hint-text"><strong>フォルダを追加</strong><span>別のフォルダを開く</span></div>
+  </div>`;
+
+  const cards = folderEntries.map(([name, items]) => {
+    const photos = items.filter(i => i.type === 'photo');
+    const videos = items.filter(i => i.type === 'video');
+    const thumbs = items.slice(0, 4);
+    const thumbHtml = thumbs.map(item => `
+      <div class="thumb-cell">
+        ${item.type === 'video'
+          ? `<video src="${item.url}" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover"></video><span class="vid-corner">▶</span>`
+          : `<img src="${item.url}" loading="lazy">`}
+      </div>`).join('') + Array(4 - thumbs.length).fill('<div class="thumb-cell"></div>').join('');
+
+    const folderKey = encodeURIComponent(name);
+    return `<div class="folder-card" onclick="openFolder('${folderKey}')">
+      <div class="folder-thumb">${thumbHtml}</div>
+      <div class="folder-info">
+        <div class="folder-name">${name.split('/').pop()}</div>
+        <div class="folder-count">${items.length} 件</div>
+        <div class="folder-badges">
+          ${photos.length ? `<span class="badge badge-p">📷 ${photos.length}</span>` : ''}
+          ${videos.length ? `<span class="badge badge-v">▶ ${videos.length}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  grid.innerHTML = hint + `<div class="folder-grid">${cards}</div>`;
+}
+
+function renderPhotos(filter = 'all') {
+  const all = state.files.filter(f => f.type === 'photo');
+  let filtered = all;
+  if (filter === 'recent') filtered = all.slice().sort((a,b) => b.file.lastModified - a.file.lastModified).slice(0, 50);
+  if (filter === 'large') filtered = all.slice().sort((a,b) => b.size - a.size).slice(0, 50);
+  const label = document.getElementById('photo-count-label');
+  label.textContent = filtered.length + ' 枚の写真';
+  const grid = document.getElementById('photo-grid');
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty" style="grid-column:span 3"><div class="emoji">📷</div><p>写真がありません</p></div>`; return;
+  }
+  grid.innerHTML = filtered.map(item => `
+    <div class="media-item" onclick="openFullscreen('${encodeURIComponent(item.url)}')">
+      <img src="${item.url}" loading="lazy">
+    </div>`).join('');
+}
+
+function renderVideos(filter = 'all') {
+  const all = state.files.filter(f => f.type === 'video');
+  let filtered = all;
+  if (filter === 'short') filtered = all.filter(v => v.duration && v.duration < 60);
+  if (filter === 'long') filtered = all.filter(v => v.duration && v.duration >= 60);
+  const label = document.getElementById('video-count-label');
+  label.textContent = filtered.length + ' 本の動画';
+  const grid = document.getElementById('video-grid');
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty" style="grid-column:span 3"><div class="emoji">🎬</div><p>動画がありません</p></div>`; return;
+  }
+  grid.innerHTML = filtered.map(item => `
+    <div class="media-item" onclick="openFullscreen('${encodeURIComponent(item.url)}')">
+      <video src="${item.url}" preload="metadata" muted playsinline></video>
+      <div class="vid-badge">▶ ${fmtDur(item.duration)}</div>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────
+//  FOLDER SCREEN
+// ─────────────────────────────────────
+function openFolder(encodedName) {
+  const name = decodeURIComponent(encodedName);
+  const items = state.folders[name] || [];
+  document.getElementById('folder-screen-name').textContent = name.split('/').pop();
+  const photos = items.filter(i => i.type === 'photo').length;
+  const videos = items.filter(i => i.type === 'video').length;
+  document.getElementById('folder-screen-count').textContent =
+    [photos && `写真 ${photos} 枚`, videos && `動画 ${videos} 本`].filter(Boolean).join('・');
+
+  const grid = document.getElementById('folder-media-grid');
+  grid.innerHTML = items.map(item => {
+    if (item.type === 'video') return `
+      <div class="media-item" onclick="openFullscreen('${encodeURIComponent(item.url)}')">
+        <video src="${item.url}" preload="metadata" muted playsinline></video>
+        <div class="vid-badge">▶ ${fmtDur(item.duration)}</div>
+      </div>`;
+    return `<div class="media-item" onclick="openFullscreen('${encodeURIComponent(item.url)}')">
+      <img src="${item.url}" loading="lazy"></div>`;
+  }).join('');
+
+  document.getElementById('folder-screen').classList.add('open');
+}
+
+function closeFolderScreen() {
+  document.getElementById('folder-screen').classList.remove('open');
+}
+
+// ─────────────────────────────────────
+//  FULLSCREEN
+// ─────────────────────────────────────
+function openFullscreen(encodedUrl) {
+  const url = decodeURIComponent(encodedUrl);
+  const item = state.files.find(f => f.url === url);
+  if (!item) return;
+  state.currentItem = item;
+  state.infoVisible = false;
+  document.getElementById('info-sheet').classList.remove('show');
+
+  document.getElementById('full-title').textContent = item.name;
+  const mediaEl = document.getElementById('full-media');
+  if (item.type === 'video') {
+    mediaEl.innerHTML = `<video src="${url}" controls playsinline autoplay style="max-width:100%;max-height:100%"></video>`;
+  } else {
+    mediaEl.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`;
+  }
+  document.getElementById('fullscreen').classList.add('open');
+}
+
+function closeFullscreen() {
+  document.getElementById('fullscreen').classList.remove('open');
+  // 動画停止
+  const v = document.querySelector('#full-media video');
+  if (v) v.pause();
+  state.currentItem = null;
+}
+
+function toggleInfo() {
+  state.infoVisible = !state.infoVisible;
+  const sheet = document.getElementById('info-sheet');
+  const item = state.currentItem;
+  if (state.infoVisible && item) {
+    const rows = [
+      ['ファイル名', item.name],
+      ['種類', item.mimeType],
+      ['サイズ', fmtSize(item.size)],
+      ['フォルダ', item.folder.split('/').pop() || item.folder],
+      item.duration != null ? ['再生時間', fmtDur(item.duration)] : null
+    ].filter(Boolean).map(([l, v]) =>
+      `<div class="info-row"><span class="info-label">${l}</span><span class="info-val">${v}</span></div>`
+    ).join('');
+    document.getElementById('info-rows').innerHTML = rows;
+  }
+  sheet.classList.toggle('show', state.infoVisible);
+}
+
+function shareMedia() {
+  const item = state.currentItem;
+  if (!item) return;
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [item.file] })) {
+    navigator.share({ files: [item.file], title: item.name }).catch(() => {});
+  } else {
+    showToast('このブラウザはシェアに対応していません');
+  }
+}
+
+function downloadMedia() {
+  const item = state.currentItem;
+  if (!item) return;
+  const a = document.createElement('a');
+  a.href = item.url;
+  a.download = item.name;
+  a.click();
+  showToast('保存しました');
+}
+
+function deleteMedia() {
+  const item = state.currentItem;
+  if (!item) return;
+  if (!confirm(`「${item.name}」を削除しますか？\n（端末の元ファイルは削除されません）`)) return;
+  URL.revokeObjectURL(item.url);
+  state.files = state.files.filter(f => f !== item);
+  Object.keys(state.folders).forEach(k => {
+    state.folders[k] = state.folders[k].filter(f => f !== item);
+    if (state.folders[k].length === 0) delete state.folders[k];
+  });
+  closeFullscreen();
+  renderAll();
+  showToast('削除しました');
+}
+
+// ─────────────────────────────────────
+//  TABS & CHIPS
+// ─────────────────────────────────────
+function initTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+function initChips() {
+  document.getElementById('photo-chips').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#photo-chips .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    renderPhotos(chip.dataset.filter);
+  });
+  document.getElementById('video-chips').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#video-chips .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    renderVideos(chip.dataset.filter);
+  });
+}
+
+// ─────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────
+function fmtDur(sec) {
+  if (sec == null) return '';
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+function fmtSize(b) {
+  if (b >= 1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
+  if (b >= 1024) return (b/1024).toFixed(1) + ' KB';
+  return b + ' B';
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─────────────────────────────────────
+//  KEYBOARD & SWIPE
+// ─────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('fullscreen').classList.contains('open')) closeFullscreen();
+    else if (document.getElementById('folder-screen').classList.contains('open')) closeFolderScreen();
+  }
+});
+
+// スワイプで戻る
+let touchStartX = 0;
+document.getElementById('folder-screen').addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+document.getElementById('folder-screen').addEventListener('touchend', e => {
+  if (e.changedTouches[0].clientX - touchStartX > 80) closeFolderScreen();
+}, { passive: true });
+document.getElementById('fullscreen').addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+document.getElementById('fullscreen').addEventListener('touchend', e => {
+  if (e.changedTouches[0].clientX - touchStartX > 80) closeFullscreen();
+}, { passive: true });
+</script>
+</body>
+</html>
